@@ -13,11 +13,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@master
+      - name: Set env
+        run: echo ::set-env name=RELEASE_VERSION::$(echo ${GITHUB_REF:10})
       - name: Build project
         uses: actions/setup-go@v1
         with:
           go-version: "1.13.5"
-      - run: go build -o extractor.${GITHUB_REF##*/}.exe
+      - run: go build -o extractor.${{env.RELEASE_VERSION}}.exe
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1.0.0
@@ -35,6 +37,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./extractor.${GITHUB_REF##*/}.exe
-          asset_name: extractor.${GITHUB_REF##*/}.exe
+          asset_path: ./extractor.${{env.RELEASE_VERSION}}.exe
+          asset_name: extractor.${{env.RELEASE_VERSION}}.exe
           asset_content_type: application/x-executable
