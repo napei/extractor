@@ -13,6 +13,7 @@ import (
 
 var files []string
 var outputdir string
+var appVersion string = "v0.4"
 
 func searchForArchives(rootpath string) error {
 	var partRegex = regexp.MustCompile("^.*(part[0-9]+\\.rar)$")
@@ -40,7 +41,7 @@ func extractArchives() {
 
 func main() {
 	args := os.Args[1:]
-
+	var version bool
 	// Handle Args
 	if !(len(os.Args) > 1) {
 		fmt.Printf(color.RedString("ERROR: input path not specified. Call the program as: ") + filepath.Base(os.Args[0]) + " [input path] <flags>\n")
@@ -48,7 +49,13 @@ func main() {
 		os.Exit(1)
 	}
 	flag.StringVar(&outputdir, "output", "", "Specify an alternate output directory for all located archives. By default, this program will output archives in the same folder.")
+	flag.BoolVar(&version, "version", false, "Output the version of the program")
 	flag.Parse()
+
+	if version {
+		fmt.Printf("Extractor - " + appVersion)
+		os.Exit(0)
+	}
 
 	searchForArchives(args[0])
 	extractArchives()
