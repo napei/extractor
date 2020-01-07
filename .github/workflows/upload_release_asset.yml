@@ -17,8 +17,7 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: "1.13.5"
-        run: |
-          go build -o extractor.${{ github.ref }}.exe
+      - run: go build -o extractor.${{ github.ref }}.exe
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1.0.0
