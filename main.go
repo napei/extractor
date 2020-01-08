@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/mholt/archiver/v3"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"github.com/mholt/archiver/v3"
 )
 
 var files []string
@@ -88,7 +88,7 @@ func fail() {
 
 func init() {
 	flag.StringVar(&inputarg, "input", "", "Specify input directory for scanning in the form -input Directory")
-	flag.StringVar(&outputarg, "output", "", "Specify an alternate output directory for all located archives. By default, this program will output archives in the same folder.")
+	flag.StringVar(&outputarg, "output", "", "Specify an alternate output directory for all located archives in the form -output Directory. By default, this program will output archives in the same folder.")
 	flag.BoolVar(&versionarg, "version", false, "Output the version of the program and exit")
 	flag.BoolVar(&dryrunarg, "dryrun", false, "Don't extract archives, only list them")
 	flag.BoolVar(&verbosearg, "verbose", false, "List every archive individually")

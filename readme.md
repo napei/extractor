@@ -1,6 +1,8 @@
 # Extractor
 
-## Opinionated rar extractor for torrent clients
+Opinionated rar extractor for torrent clients
+
+---
 
 ## Download
 
