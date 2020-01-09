@@ -20,6 +20,10 @@ The application can also perform a 'dry run' through the use of the `-dryrun` fl
 
 By default, the application will hide names of the files and only show a count of the archives found and a status with a number, to prevent visual spam. These messages can be enabled through the `-verbose` flag.
 
+Basic terminal usage is shown below, where the filename relates to the latest version downloaded.
+
+`> extractor.v0.x.exe -input H:\Torrents\Seeding\`
+
 ## Usage in torrent clients
 
 Most modern torrent clients allow for the running of a program on torrent completion. This feature allows arguments relevant to that torrent to be passed to the program also. Examples are shown below.
