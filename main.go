@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/mholt/archiver/v3"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/mholt/archiver/v3"
 )
 
 var files []string
@@ -18,7 +19,7 @@ var versionarg bool = false
 var dryrunarg bool = false
 var verbosearg bool = false
 
-var appVersion string = "v0.5.1"
+var appVersion string = "v0.6"
 
 var (
 	black   = consoleColor("\033[1;30m%s\033[0m")
@@ -39,7 +40,7 @@ func consoleColor(colorString string) func(...interface{}) string {
 	return sprint
 }
 
-func searchForArchives() error {
+func searchForArchives(inputpath string, verbose bool) {
 	var outputmessage = "[Looking for Archives]"
 	var partRegex = regexp.MustCompile("^.*(part[0-9]+\\.rar)$")
 	if dryrunarg {
@@ -47,9 +48,9 @@ func searchForArchives() error {
 	}
 	fmt.Println(yellow(outputmessage))
 
-	err := filepath.Walk(inputarg, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(inputpath, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() && (strings.Contains(info.Name(), "part01.rar") || (!partRegex.MatchString(info.Name()) && strings.Contains(info.Name(), ".rar"))) {
-			if verbosearg {
+			if verbose {
 				fmt.Println(green("[Found Archive]: ") + filepath.Clean(path))
 			}
 			files = append(files, path)
@@ -57,29 +58,47 @@ func searchForArchives() error {
 		return nil
 	})
 	fmt.Println(teal("Found " + strconv.Itoa(len(files)) + " archives"))
-	return err
+
 }
 
-func extractArchives() {
+func extractArchives(outputpath string, verbose bool) {
 	fmt.Println(yellow("[Extracting Archives]"))
-	var outputpath string
+
+	var outTemp string
 	var currentItem string
+
 	for i := range files {
 		currentItem = strconv.Itoa(i+1) + "\\" + strconv.Itoa(len(files))
 
 		if outputarg != "" {
-			outputpath = outputarg
+			outTemp = outputarg
 		} else {
-			outputpath = filepath.Dir(files[i])
+			outTemp = filepath.Dir(files[i])
 		}
-		var outputstring = green("[Extracting]") + " - " + teal(currentItem)
-		if verbosearg {
-			outputstring += white(" - " + filepath.Base(files[i]))
+		var outputMessage = green("[Extracting]") + " - " + teal(currentItem)
+		if verbose {
+			outputMessage += white(" - " + filepath.Base(files[i]))
 		}
-		fmt.Println(outputstring)
-		archiver.Unarchive(files[i], outputpath)
+		fmt.Println(outputMessage)
+
+		archiver.Unarchive(files[i], outTemp)
 	}
 }
+
+func processDirectory(inputpath string, outputpath string, dry bool, verbose bool) {
+	if inputpath == "" {
+		fail()
+	}
+
+	searchForArchives(inputpath, verbose)
+
+	if dry {
+		fmt.Println(yellow("Dry run complete. No archives extracted"))
+	} else {
+		extractArchives(outputpath, verbose)
+	}
+}
+
 func fail() {
 	fmt.Println(red("ERROR: input path not specified. Call the program as: ") + filepath.Base(os.Args[0]) + " -input=\"Directory\" <flags>")
 	fmt.Println("For help, use the '-h' flag")
@@ -91,7 +110,7 @@ func init() {
 	flag.StringVar(&outputarg, "output", "", "Specify an alternate output directory for all located archives in the form -output Directory. By default, this program will output archives in the same folder.")
 	flag.BoolVar(&versionarg, "version", false, "Output the version of the program and exit")
 	flag.BoolVar(&dryrunarg, "dryrun", false, "Don't extract archives, only list them")
-	flag.BoolVar(&verbosearg, "verbose", false, "List every archive individually")
+	flag.BoolVar(&verbosearg, "verbose", false, "List archive names")
 	flag.Parse()
 }
 
@@ -109,17 +128,13 @@ func main() {
 	if inputarg != "" {
 		inputarg = filepath.Clean(inputarg)
 	} else {
-		fail()
+		inputarg = ""
 	}
 	if outputarg != "" {
 		outputarg = filepath.Clean(outputarg)
-	}
-
-	searchForArchives()
-
-	if dryrunarg {
-		fmt.Println(yellow("Dry run complete. No archives extracted"))
 	} else {
-		extractArchives()
+		outputarg = ""
 	}
+
+	processDirectory(inputarg, outputarg, dryrunarg, verbosearg)
 }
