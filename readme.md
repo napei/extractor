@@ -2,6 +2,8 @@
 
 Opinionated rar extractor for torrent clients
 
+![Latest Release](https://github.com/napei/extractor/workflows/Upload%20Release%20Asset/badge.svg)
+
 ---
 
 ## Download
