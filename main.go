@@ -22,7 +22,7 @@ var (
 	overwritearg bool   = false
 )
 
-const appVersion string = "v0.7"
+const appVersion string = "v0.7.1"
 
 var (
 	black   = consoleColor("\033[1;30m%s\033[0m")
