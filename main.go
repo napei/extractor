@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,14 +13,16 @@ import (
 	"github.com/mholt/archiver/v3"
 )
 
-var files []string
-var inputarg string = ""
-var outputarg string = ""
-var versionarg bool = false
-var dryrunarg bool = false
-var verbosearg bool = false
+var (
+	inputarg     string = ""
+	outputarg    string = ""
+	versionarg   bool   = false
+	dryrunarg    bool   = false
+	verbosearg   bool   = false
+	overwritearg bool   = false
+)
 
-var appVersion string = "v0.6.1"
+const appVersion string = "v0.7"
 
 var (
 	black   = consoleColor("\033[1;30m%s\033[0m")
@@ -33,14 +36,12 @@ var (
 )
 
 func consoleColor(colorString string) func(...interface{}) string {
-	sprint := func(args ...interface{}) string {
-		return fmt.Sprintf(colorString,
-			fmt.Sprint(args...))
+	return func(args ...interface{}) string {
+		return fmt.Sprintf(colorString, fmt.Sprint(args...))
 	}
-	return sprint
 }
 
-func searchForArchives(inputpath string, verbose bool) {
+func searchForArchives(inputpath string, verbose bool) (out []string, err error) {
 	var outputmessage = "[Looking for Archives]"
 	var partRegex = regexp.MustCompile("^.*(part[0-9]+\\.rar)$")
 	if dryrunarg {
@@ -48,55 +49,119 @@ func searchForArchives(inputpath string, verbose bool) {
 	}
 	fmt.Println(yellow(outputmessage))
 
-	filepath.Walk(inputpath, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() && (strings.Contains(info.Name(), "part01.rar") || (!partRegex.MatchString(info.Name()) && strings.Contains(info.Name(), ".rar"))) {
+	err = filepath.Walk(inputpath, func(path string, info os.FileInfo, e error) (err error) {
+		if e != nil {
+			log.Println("Error: ", e)
+			return e
+		}
+
+		// Skip if the current file a directory
+		if info.IsDir() {
+			return nil
+		}
+
+		// Current filename
+		filename := info.Name()
+
+		// Find explicit part01 file
+		containsPart01 := strings.Contains(filename, "part01.rar")
+		// Check if the file is a rar part file in general
+		isAnyPartFile := partRegex.MatchString(filename)
+		// Check if file has .rar extension
+		isRarFile := filepath.Ext(filename) == ".rar"
+
+		isZipFile := filepath.Ext(filename) == ".zip"
+
+		if containsPart01 || (!isAnyPartFile && isRarFile) {
+			p := filepath.Clean(path)
 			if verbose {
-				fmt.Println(green("[Found Archive]: ") + filepath.Clean(path))
+				fmt.Println(green("[Found RAR Archive]: ") + p)
 			}
-			files = append(files, path)
+			out = append(out, p)
+		} else if isZipFile {
+			p := filepath.Clean(path)
+			if verbose {
+				fmt.Println(green("[Found ZIP Archive]: ") + p)
+			}
+			out = append(out, p)
 		}
 		return nil
 	})
-	fmt.Println(teal("Found " + strconv.Itoa(len(files)) + " archives"))
 
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(teal("Found " + strconv.Itoa(len(out)) + " archives"))
+
+	return out, nil
 }
 
-func extractArchives(outputpath string, verbose bool) {
+func extractArchives(files []string, outputpath string, verbose bool) (err error) {
 	fmt.Println(yellow("[Extracting Archives]"))
 
-	var outTemp string
-	var currentItem string
+	var outPath string
+	var currentFile string
 
 	for i := range files {
-		currentItem = strconv.Itoa(i+1) + "\\" + strconv.Itoa(len(files))
+		currentFile = strconv.Itoa(i+1) + "\\" + strconv.Itoa(len(files))
 
 		if outputarg != "" {
-			outTemp = outputarg
+			outPath = outputarg
 		} else {
-			outTemp = filepath.Dir(files[i])
+			outPath = filepath.Dir(files[i])
 		}
-		var outputMessage = green("[Extracting]") + " - " + teal(currentItem)
+		var outputMessage = green("[Extracting]") + " - " + teal(currentFile)
 		if verbose {
 			outputMessage += white(" - " + filepath.Base(files[i]))
 		}
 		fmt.Println(outputMessage)
 
-		archiver.Unarchive(files[i], outTemp)
+		arc, err := archiver.ByExtension(files[i])
+		if err != nil {
+			return err
+		}
+
+		switch arc.(type) {
+		case *archiver.Rar:
+			arc.(*archiver.Rar).OverwriteExisting = overwritearg
+			arc.(*archiver.Rar).ContinueOnError = true
+			break
+
+		case *archiver.Zip:
+			arc.(*archiver.Zip).OverwriteExisting = overwritearg
+			arc.(*archiver.Zip).ContinueOnError = true
+			break
+		}
+
+		err = arc.(archiver.Unarchiver).Unarchive(files[i], outPath)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func processDirectory(inputpath string, outputpath string, dry bool, verbose bool) {
+func processDirectory(inputpath string, outputpath string, dry bool, verbose bool) (err error) {
 	if inputpath == "" {
 		fail()
 	}
 
-	searchForArchives(inputpath, verbose)
+	files, err := searchForArchives(inputpath, verbose)
+	if err != nil {
+		return err
+	}
 
 	if dry {
 		fmt.Println(yellow("Dry run complete. No archives extracted"))
 	} else {
-		extractArchives(outputpath, verbose)
+		err = extractArchives(files, outputpath, verbose)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func fail() {
@@ -106,17 +171,24 @@ func fail() {
 }
 
 func init() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s -input=\"Directory\" [flags]\n", filepath.Base(os.Args[0]))
+
+		flag.PrintDefaults()
+	}
+
 	flag.StringVar(&inputarg, "input", "", "Specify input directory for scanning in the form -input Directory")
-	flag.StringVar(&outputarg, "output", "", "Specify an alternate output directory for all located archives in the form -output Directory. By default, this program will output archives in the same folder.")
+	flag.StringVar(&outputarg, "output", "", "Specify an alternate output directory for all located archives in the form -output Directory.\nBy default, this program will output archives in the same folder.")
 	flag.BoolVar(&versionarg, "version", false, "Output the version of the program and exit")
-	flag.BoolVar(&dryrunarg, "dryrun", false, "Don't extract archives, only list them")
-	flag.BoolVar(&verbosearg, "verbose", false, "List archive names")
+	flag.BoolVar(&dryrunarg, "dryrun", false, "Don't extract archives, only list them. Default: false")
+	flag.BoolVar(&verbosearg, "verbose", false, "List archive names. Default: false")
+	flag.BoolVar(&overwritearg, "overwrite", false, "Overwrite existing files. Default: false")
 	flag.Parse()
 }
 
 func main() {
 
-	if !(len(os.Args) > 1) {
+	if len(os.Args) < 1 {
 		fail()
 	}
 
@@ -136,5 +208,11 @@ func main() {
 		outputarg = ""
 	}
 
-	processDirectory(inputarg, outputarg, dryrunarg, verbosearg)
+	archiver.DefaultRar.OverwriteExisting = overwritearg
+	archiver.DefaultRar.ContinueOnError = true
+
+	err := processDirectory(inputarg, outputarg, dryrunarg, verbosearg)
+	if err != nil {
+		log.Fatalln("An error occured: ", err)
+	}
 }
