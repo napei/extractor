@@ -18,7 +18,7 @@ jobs:
       - name: Build project
         uses: actions/setup-go@v1
         with:
-          go-version: "1.13.5"
+          go-version: "1.14.2"
       - run: go build -o extractor.${{env.RELEASE_VERSION}}.exe
       - name: Create Release
         id: create_release
