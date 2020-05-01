@@ -12,7 +12,7 @@ Download latest release here: [Latest Release](https://github.com/napei/extracto
 
 ## Commandline usage
 
-Application can be run from the command line. Typically an input directory is specified using the `-input` flag, and then the directory is searched recursively and all `.rar` and `.part01.rar` files are extracted and their contents are left in the same directory as that file.
+Application can be run from the command line. Typically an input directory is specified using the `-input` flag, and then the directory is searched recursively and all `.rar`,`.part01.rar`, and `.zip` files are extracted and their contents are left in the same directory as the archive.
 
 This can be applicable to many situations, however this executable was designed specifically to work well with torrents, as 99% of torrents that have archives will either have a master `.rar` file or many `.part0x.rar` files. This application will only look at `.part01.rar` files in the latter case, so as to not add extra cost to extraction.
 
@@ -22,9 +22,11 @@ The application can also perform a 'dry run' through the use of the `-dryrun` fl
 
 By default, the application will hide names of the files and only show a count of the archives found and a status with a number, to prevent visual spam. These messages can be enabled through the `-verbose` flag.
 
+Also, if an output file already exists, the application will continue. This can be overridden with the `-overwrite` flag, which will overwrite existing files.
+
 Basic terminal usage is shown below, where the filename relates to the latest version downloaded.
 
-`> extractor.v0.x.exe -input H:\Torrents\Seeding\`
+`> extractor.v0.x.exe -input C:\Torrents\Seeding\`
 
 ## Usage in torrent clients
 
