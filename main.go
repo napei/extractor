@@ -19,7 +19,7 @@ var versionarg bool = false
 var dryrunarg bool = false
 var verbosearg bool = false
 
-var appVersion string = "v0.6"
+var appVersion string = "v0.6.1"
 
 var (
 	black   = consoleColor("\033[1;30m%s\033[0m")
