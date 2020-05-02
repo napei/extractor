@@ -11,29 +11,19 @@ import (
 	"strings"
 
 	"github.com/mholt/archiver/v3"
+	"gopkg.in/gookit/color.v1"
 )
 
 var (
-	inputarg     string = ""
-	outputarg    string = ""
-	versionarg   bool   = false
-	dryrunarg    bool   = false
-	verbosearg   bool   = false
-	overwritearg bool   = false
+	inputarg       string = ""
+	outputarg      string = ""
+	versionarg     bool   = false
+	dryrunarg      bool   = false
+	verbosearg     bool   = false
+	noOverwriteArg bool   = false
 )
 
-const appVersion string = "v0.7.1"
-
-var (
-	black   = consoleColor("\033[1;30m%s\033[0m")
-	red     = consoleColor("\033[1;31m%s\033[0m")
-	green   = consoleColor("\033[1;32m%s\033[0m")
-	yellow  = consoleColor("\033[1;33m%s\033[0m")
-	purple  = consoleColor("\033[1;34m%s\033[0m")
-	magenta = consoleColor("\033[1;35m%s\033[0m")
-	teal    = consoleColor("\033[1;36m%s\033[0m")
-	white   = consoleColor("\033[1;37m%s\033[0m")
-)
+const appVersion string = "v0.7.5"
 
 func consoleColor(colorString string) func(...interface{}) string {
 	return func(args ...interface{}) string {
@@ -47,7 +37,7 @@ func searchForArchives(inputpath string, verbose bool) (out []string, err error)
 	if dryrunarg {
 		outputmessage += " - Dry Run"
 	}
-	fmt.Println(yellow(outputmessage))
+	fmt.Println(color.Yellow.Text(outputmessage))
 
 	err = filepath.Walk(inputpath, func(path string, info os.FileInfo, e error) (err error) {
 		if e != nil {
@@ -75,13 +65,13 @@ func searchForArchives(inputpath string, verbose bool) (out []string, err error)
 		if containsPart01 || (!isAnyPartFile && isRarFile) {
 			p := filepath.Clean(path)
 			if verbose {
-				fmt.Println(green("[Found RAR Archive]: ") + p)
+				fmt.Println(color.Green.Text("[Found RAR Archive]: ") + p)
 			}
 			out = append(out, p)
 		} else if isZipFile {
 			p := filepath.Clean(path)
 			if verbose {
-				fmt.Println(green("[Found ZIP Archive]: ") + p)
+				fmt.Println(color.Green.Text("[Found ZIP Archive]: ") + p)
 			}
 			out = append(out, p)
 		}
@@ -92,28 +82,33 @@ func searchForArchives(inputpath string, verbose bool) (out []string, err error)
 		return nil, err
 	}
 
-	fmt.Println(teal("Found " + strconv.Itoa(len(out)) + " archives"))
+	fmt.Println(color.Cyan.Text("Found " + strconv.Itoa(len(out)) + " archives"))
 
 	return out, nil
 }
 
-func extractArchives(files []string, outputpath string, verbose bool) (err error) {
-	fmt.Println(yellow("[Extracting Archives]"))
+func fileExists(name string) bool {
+	_, err := os.Stat(name)
+	return !os.IsNotExist(err)
+}
 
-	var outPath string
+func extractArchives(files []string, outputpath string, verbose bool) (err error) {
+	fmt.Println(color.Yellow.Text("[Extracting Archives]"))
+
+	var currentOutPath string
 	var currentFile string
 
 	for i := range files {
 		currentFile = strconv.Itoa(i+1) + "\\" + strconv.Itoa(len(files))
 
 		if outputarg != "" {
-			outPath = outputarg
+			currentOutPath = outputarg
 		} else {
-			outPath = filepath.Dir(files[i])
+			currentOutPath = filepath.Dir(files[i])
 		}
-		var outputMessage = green("[Extracting]") + " - " + teal(currentFile)
+		var outputMessage = color.Green.Text("[Extracting]") + " - " + color.Cyan.Text(currentFile)
 		if verbose {
-			outputMessage += white(" - " + filepath.Base(files[i]))
+			outputMessage += color.White.Text(" - " + filepath.Base(files[i]))
 		}
 		fmt.Println(outputMessage)
 
@@ -124,17 +119,17 @@ func extractArchives(files []string, outputpath string, verbose bool) (err error
 
 		switch arc.(type) {
 		case *archiver.Rar:
-			arc.(*archiver.Rar).OverwriteExisting = overwritearg
+			arc.(*archiver.Rar).OverwriteExisting = !noOverwriteArg
 			arc.(*archiver.Rar).ContinueOnError = true
 			break
 
 		case *archiver.Zip:
-			arc.(*archiver.Zip).OverwriteExisting = overwritearg
+			arc.(*archiver.Zip).OverwriteExisting = !noOverwriteArg
 			arc.(*archiver.Zip).ContinueOnError = true
 			break
 		}
 
-		err = arc.(archiver.Unarchiver).Unarchive(files[i], outPath)
+		err = arc.(archiver.Unarchiver).Unarchive(files[i], currentOutPath)
 		if err != nil {
 			return err
 		}
@@ -153,7 +148,7 @@ func processDirectory(inputpath string, outputpath string, dry bool, verbose boo
 	}
 
 	if dry {
-		fmt.Println(yellow("Dry run complete. No archives extracted"))
+		fmt.Println(color.Yellow.Text("Dry run complete. No archives extracted"))
 	} else {
 		err = extractArchives(files, outputpath, verbose)
 		if err != nil {
@@ -165,7 +160,7 @@ func processDirectory(inputpath string, outputpath string, dry bool, verbose boo
 }
 
 func fail() {
-	fmt.Println(red("ERROR: input path not specified. Call the program as: ") + filepath.Base(os.Args[0]) + " -input=\"Directory\" <flags>")
+	fmt.Println(color.Red.Text("ERROR: input path not specified. Call the program as: ") + filepath.Base(os.Args[0]) + " -input=\"Directory\" <flags>")
 	fmt.Println("For help, use the '-h' flag")
 	os.Exit(1)
 }
@@ -182,7 +177,7 @@ func init() {
 	flag.BoolVar(&versionarg, "version", false, "Output the version of the program and exit")
 	flag.BoolVar(&dryrunarg, "dryrun", false, "Don't extract archives, only list them. Default: false")
 	flag.BoolVar(&verbosearg, "verbose", false, "List archive names. Default: false")
-	flag.BoolVar(&overwritearg, "overwrite", false, "Overwrite existing files. Default: false")
+	flag.BoolVar(&noOverwriteArg, "no-overwrite", false, "Don't overwrite existing files. Default: false")
 	flag.Parse()
 }
 
@@ -208,7 +203,7 @@ func main() {
 		outputarg = ""
 	}
 
-	archiver.DefaultRar.OverwriteExisting = overwritearg
+	archiver.DefaultRar.OverwriteExisting = noOverwriteArg
 	archiver.DefaultRar.ContinueOnError = true
 
 	err := processDirectory(inputarg, outputarg, dryrunarg, verbosearg)

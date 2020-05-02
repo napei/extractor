@@ -22,7 +22,7 @@ The application can also perform a 'dry run' through the use of the `-dryrun` fl
 
 By default, the application will hide names of the files and only show a count of the archives found and a status with a number, to prevent visual spam. These messages can be enabled through the `-verbose` flag.
 
-Also, if an output file already exists, the application will continue. This can be overridden with the `-overwrite` flag, which will overwrite existing files.
+Also, if an output file already exists, the application will overwrite the file by default. This can be overridden with the `-no-overwrite` flag, which will disalow overwriting existing files.
 
 Basic terminal usage is shown below, where the filename relates to the latest version downloaded.
 
